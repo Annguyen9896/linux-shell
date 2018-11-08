@@ -1,0 +1,259 @@
+// Created by An Nguyen on 9/4/18.
+// CSE-3320-001
+// Lab1
+//
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <string.h>
+#include <time.h>
+#include <curses.h>
+#include <limits.h>
+#include <errno.h>
+#include <stdio.h>
+
+char* dir[1024];
+char* file[NAME_MAX];
+int dir_count = 0;
+int file_count = 0;
+pid_t child;
+DIR * d;
+struct dirent * de;
+int i, c, k, j;
+char s[NAME_MAX], cmd[NAME_MAX];
+time_t t;
+
+
+void print_time(){
+    t = time(NULL);
+    printf("It is now: %s", ctime(&t));
+}
+void print_cd(){
+    if ( errno == ERANGE)//this error check should handle errors due to length
+    {
+        printf("Directory Name is too long!");
+    }
+    else if(getcwd(s, sizeof(s)) == NULL){
+        perror("getcwd() error");
+    }
+    else{
+        printf("Current Working Directory is: %s\n", s);
+    }
+}
+void print_dir(){
+    d = opendir(".");
+    c = 8; // display value
+    j = 0; //file marker
+    dir_count = 0;
+    if (d == NULL){
+        perror("error");
+    }
+    else{
+        printf("\nDirectory: \n");
+        while((de = readdir(d)) != NULL )
+        {
+            if(((de->d_type) & DT_DIR))//checks if type is file
+            {
+                dir[dir_count] = de->d_name;
+                dir_count++;
+            }
+        }
+        closedir(d);
+    }
+    int flag = 1;
+    while(flag){
+        for(i = j ; i < c; i++){
+            printf("\t\t\t %d %s\n",i, dir[i]);}
+        if(dir_count<8)
+            break;
+        else{
+            printf("Hit N for Next\nP for prev\nF for Files\n>>");
+            k = getchar();getchar();
+            if ((k == 'N') || (k == 'n'))
+            {
+                c+=8;
+                j+=8;
+            }
+            else if ((k == 'P') || (k == 'p'))
+            {
+                c -= 8;
+                j-=8;
+            }
+            else if((k == 'F') || (k == 'f'))
+            {
+                flag =0;
+                break;
+            }
+            else{
+                printf("Unknown Command.");
+            }
+        }
+    }
+}
+
+
+void print_file(){
+    d = opendir(".");
+    c = 8; // display value
+    j = 0; //file marker
+    dir_count = 0;
+    if (d == NULL){
+        perror("error");
+    }
+    else{
+        printf("\nFiles: \n");
+        while((de = readdir(d)) != NULL )
+        {
+            if(((de->d_type) & DT_REG))//checks if type is file
+            {
+                file[file_count] = de->d_name;
+                file_count++;
+            }
+        }
+        closedir(d);
+    }
+    int flag = 1;
+    while(flag){
+        for(i = j ; i < c; i++){
+            printf("\t\t\t %d %s\n",i, file[i]);}
+        if(file_count<8)
+            break;
+        else{
+            printf("Hit N for Next\nP for prev\nO for operations\n>>");
+            k = getchar();getchar();
+            if ((k == 'N') || (k == 'n'))
+            {
+                c+=8;
+                j+=8;
+            }
+            else if ((k == 'P') || (k == 'p'))
+            {
+                c -= 8;
+                j-=8;
+            }
+            else if((k == 'O') || (k == 'o'))
+            {
+                flag =0;
+                break;
+            }
+            else{
+                printf("Unknown Command.");
+            }
+        }
+    }
+}
+
+
+
+void run(){
+    printf("Run what? ");
+    gets(cmd);
+    system(cmd);
+    getchar();
+    
+}
+void edit(){
+    printf("Edit what? ");
+    scanf("%s",s);
+    strcpy(cmd, "pico ");
+    strcat(cmd, s);
+    system(cmd);
+    getchar();
+}
+void change_directory() {
+    printf("Change to? " );
+    gets(cmd);
+    getchar();
+    if(chdir(cmd) == -1) {
+        perror("Error");
+    }
+    else{
+        printf("Changed to %s\n", cmd);
+    }
+}
+void delete(){
+    printf("Enter file name or path to remove: ");
+    gets(s);
+    strcpy(cmd, "rm ");
+    strcat(cmd, s);
+    system(cmd);
+}
+void moveTo(){
+    printf("Enter source (file name or path): ");
+    gets(s);
+    strcpy(cmd, "mv ");
+    strcat(cmd, s);
+    printf("Enter destination (file name or path) : ");
+    gets(s);
+    strcat(cmd," ");
+    strcat(cmd,s);
+    system(cmd);
+}
+
+static int nameCompare (const void * a, const void * b)
+{
+    return strcmp (*(const char **) a, *(const char **) b);
+}
+
+void sortName(char *arr[], int n)
+{
+    qsort (arr, n, sizeof (const char *), nameCompare);
+}
+void sort()
+{
+    sortName(file,file_count);
+    printf("Files are sorted!");
+    print_file();
+}
+
+void menu(){
+    printf( "-------------------\n");
+    printf("Operations:\n");
+    printf("D\tDisplay\nE\tEdit\nR\tRun\nC\tChange Directory\nQ\tQuit\nI\tInfo\nS\tSort\nT\tMove to Directory\nM\tRemove\n");
+    printf(">> ");
+    c = getchar(); getchar();
+    switch(c)
+    {
+        case 'q':
+        case 'Q': exit(0);
+        case 'd':
+        case 'D': print_dir();
+            print_file();
+            break;
+        case 'e':
+        case 'E': edit();
+            break;
+        case 'r':
+        case 'R': run();
+            break;
+        case 'c':
+        case 'C': change_directory();
+            print_cd();
+            break;
+        case 's':
+        case 'S': sort();
+            break;
+        case 'm':
+        case 'M': delete();
+            break;
+        case 't':
+        case 'T': moveTo();
+            break;
+        default: printf("Unknown Operation!\n");
+            break;
+    }
+}
+           
+int main(){
+    print_time();    print_cd();
+    print_dir();
+    print_file();
+    while(1){
+        menu();
+    }
+}
+
+
